@@ -2,11 +2,10 @@ import { db } from "./firebase";
 import "./index.css";
 import { useState, useEffect } from "react";
 import React from "react";
-import { collection, addDoc} from "firebase/firestore"; 
-import { getFirestore } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { deleteDoc } from "firebase/firestore";
 import { onSnapshot } from "firebase/firestore";
-import { getDocs } from "firebase/firestore";
+import { doc } from "firebase/firestore";
 
 function Items(props) {
     let list =
@@ -18,20 +17,25 @@ function Items(props) {
     return list
 }
 
-function MyComponent() {
+function LIST() {
     const [List, setItems] = useState([]);
     const [newItem, setNewItem] = useState('');
 
     useEffect(() => {
-        collection(db, "todo").onSnapshot((snapshot) => {
-            const todos = snapshot.docs.map((doc) => doc.data());
-            setItems(todos);
+        const unsub = onSnapshot(collection(db, "todo"), (snapshot) => {
+            let todosArr = [];
+            snapshot.forEach((doc) => {
+                console.log(doc)
+                todosArr.push({ ...doc.data(), id: doc.id });
+            });
+            setItems(todosArr);
         });
+        return () => unsub();
     }, []);
 
     const handleAddItem = async () => {
-        await addDoc(collection(db, "todo"), { item: newItem,id: firebase.firestore().collection("todo").doc().id });
         setItems([...List, newItem]);
+        await addDoc(collection(db, "todo"), { item: newItem });
         setNewItem('');
     }
 
@@ -39,8 +43,9 @@ function MyComponent() {
         setNewItem(event.target.value);
     }
 
-    const handleDelete = (id) => {
-        firebase.firestore().collection("todo").doc(id).delete();
+    const handleDelete = async (id) => {
+        const todoDoc = doc(db, "todo", id);
+        await deleteDoc(todoDoc);
         setItems(List.filter((item) => item.id !== id));
     };
 
@@ -54,11 +59,11 @@ function MyComponent() {
                     <button className="submitbutton" onClick={handleAddItem} type="submit">Submit</button>
                 </div>
                 <ul className="listzone">
-                    {List.map((item, index) => <Items key={index} brand={item} handleDelete={handleDelete} id={index} />)}
+                    {List.map((item, index) => <Items key={index} brand={item.item} handleDelete={handleDelete} id={item.id} />)}
                 </ul>
             </div>
         </>
     );
 }
 
-export default MyComponent
+export default LIST
